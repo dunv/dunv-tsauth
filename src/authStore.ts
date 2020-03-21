@@ -5,8 +5,13 @@ import { boundMethod } from 'autobind-decorator';
 
 export const COOKIE_NAME = 'dunv-ts-auth';
 
-export type Subscriber = (loggedIn: boolean, user?: User<any>) => void;
-export type Unsubscribe = () => void;
+export interface Subscriber {
+    (loggedIn: boolean, user?: User<any>): void;
+}
+
+export interface Unsubscribe {
+    (): void;
+}
 
 export class AuthStore {
     private static instance: AuthStore;
