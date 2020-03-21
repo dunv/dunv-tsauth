@@ -1,11 +1,12 @@
 {
     "name": "dunv-tsauth",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "Auth helpers",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "scripts": {
-        "build": "tsc",
+        "prepublish": "tsc --build --clean",
+        "build": "tsc --build --clean",
         "test": "mocha -r ts-node/register tests/**/*.test.ts",
         "coverage": "nyc -r lcov -e .ts -x \"*.test.ts\" npm run test"
     },
