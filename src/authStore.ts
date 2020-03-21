@@ -3,10 +3,10 @@ import { User } from './models';
 import jwtDecode from 'jwt-decode';
 import { boundMethod } from 'autobind-decorator';
 
-const COOKIE_NAME = 'dunv-ts-auth';
+export const COOKIE_NAME = 'dunv-ts-auth';
 
-type Subscriber = (loggedIn: boolean, user?: User<any>) => void;
-type Unsubscribe = () => void;
+export type Subscriber = (loggedIn: boolean, user?: User<any>) => void;
+export type Unsubscribe = () => void;
 
 export class AuthStore {
     private static instance: AuthStore;
