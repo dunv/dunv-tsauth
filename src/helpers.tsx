@@ -1,9 +1,9 @@
 import * as React from 'react';
 import axios, { AxiosInstance } from 'axios';
-import { User } from './models';
+import { User, ConnectToAuthProps } from './models';
 import { AuthStore, Unsubscribe } from './authStore';
 
-export async function login<T>(userName: string, password: string): Promise<User<T>> {
+export async function login(userName: string, password: string): Promise<User> {
     const url = AuthStore.get().url;
     if (!url) {
         throw 'URL needs to be configured before usage';
@@ -39,7 +39,7 @@ export function apiRequestWithoutAuth(timeout?: number, baseURL: string = AuthSt
 }
 
 export const ConnectToAuth = <P extends object>(Component: React.ComponentType<P>) =>
-    class ConnectedComponent extends React.Component<object> {
+    class ConnectedComponent extends React.Component<P & ConnectToAuthProps> {
         state = {
             user: undefined,
             loggedIn: false,
@@ -52,7 +52,7 @@ export const ConnectToAuth = <P extends object>(Component: React.ComponentType<P
                 this.setState({ user, loggedIn: true });
             }
 
-            this.unsubscribe = AuthStore.get().addSubscriber((loggedIn: boolean, user?: User<any>) => {
+            this.unsubscribe = AuthStore.get().addSubscriber((loggedIn: boolean, user?: User) => {
                 this.setState({ loggedIn, user });
             });
         }
@@ -65,6 +65,6 @@ export const ConnectToAuth = <P extends object>(Component: React.ComponentType<P
 
         render() {
             const { user, loggedIn } = this.state;
-            return <Component {...(this.props as P)} loggedIn={loggedIn} user={user} />;
+            return <Component {...this.props as P} loggedIn={loggedIn} user={user} />;
         }
     };

@@ -1,4 +1,4 @@
-export type User<T> = {
+export type User = {
     id: string;
     userName: string;
     firstName: string;
@@ -6,5 +6,10 @@ export type User<T> = {
     permissions: string[];
     roles: string[];
     jwt: string;
-    additionalAttributes?: T;
+    additionalAttributes?: any;
 };
+
+export interface ConnectToAuthProps {
+    loggedIn: boolean,
+    user: User,
+}

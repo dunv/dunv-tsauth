@@ -6,7 +6,7 @@ import { boundMethod } from 'autobind-decorator';
 export const COOKIE_NAME = 'dunv-ts-auth';
 
 export interface Subscriber {
-    (loggedIn: boolean, user?: User<any>): void;
+    (loggedIn: boolean, user?: User): void;
 }
 
 export interface Unsubscribe {
@@ -44,7 +44,7 @@ export class AuthStore {
     }
 
     @boundMethod
-    public user(): User<any> | undefined {
+    public user(): User | undefined {
         if (this._jwtToken) {
             return jwtDecode(this._jwtToken);
         }
@@ -78,7 +78,7 @@ export class AuthStore {
     }
 
     @boundMethod
-    private notifySubscribers(loggedIn: boolean, user?: User<any>) {
+    private notifySubscribers(loggedIn: boolean, user?: User) {
         this.subscribers.forEach(subscriber => subscriber(loggedIn, user));
     }
 }
