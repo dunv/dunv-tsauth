@@ -38,7 +38,7 @@ export function apiRequestWithoutAuth(timeout?: number, baseURL: string = AuthSt
     });
 }
 
-export const ConnectToAuth = <P extends object>(Component: React.ComponentType<P>) =>
+export const ConnectToAuth = <P extends object>(Component: React.ComponentType<P & ConnectToAuthProps>) =>
     class ConnectedComponent extends React.Component<P & ConnectToAuthProps> {
         state = {
             user: undefined,

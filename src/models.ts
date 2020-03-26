@@ -10,6 +10,6 @@ export type User = {
 };
 
 export interface ConnectToAuthProps {
-    loggedIn: boolean;
-    user: User;
+    loggedIn?: boolean;
+    user?: User;
 }
