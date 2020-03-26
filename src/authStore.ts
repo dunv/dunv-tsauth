@@ -73,12 +73,12 @@ export class AuthStore {
     public addSubscriber(fn: Subscriber): Unsubscribe {
         this.subscribers.push(fn);
         return () => {
-            this.subscribers = this.subscribers.filter(func => func !== fn);
+            this.subscribers = this.subscribers.filter((func) => func !== fn);
         };
     }
 
     @boundMethod
     private notifySubscribers(loggedIn: boolean, user?: User) {
-        this.subscribers.forEach(subscriber => subscriber(loggedIn, user));
+        this.subscribers.forEach((subscriber) => subscriber(loggedIn, user));
     }
 }

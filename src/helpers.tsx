@@ -27,15 +27,15 @@ export function apiRequest(timeout?: number, baseURL: string = AuthStore.get().u
     return axios.create({
         baseURL,
         timeout: timeout || 5000,
-        headers: { Authorization: `Bearer ${AuthStore.get().jwtToken}`}
-    })
+        headers: { Authorization: `Bearer ${AuthStore.get().jwtToken}` },
+    });
 }
 
 export function apiRequestWithoutAuth(timeout?: number, baseURL: string = AuthStore.get().url): AxiosInstance {
     return axios.create({
         baseURL,
         timeout: timeout || 5000,
-    })
+    });
 }
 
 export const ConnectToAuth = <P extends object>(Component: React.ComponentType<P>) =>
@@ -65,6 +65,6 @@ export const ConnectToAuth = <P extends object>(Component: React.ComponentType<P
 
         render() {
             const { user, loggedIn } = this.state;
-            return <Component {...this.props as P} loggedIn={loggedIn} user={user} />;
+            return <Component {...(this.props as P)} loggedIn={loggedIn} user={user} />;
         }
     };
