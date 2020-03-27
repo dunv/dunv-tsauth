@@ -1,33 +1,96 @@
-import * as React from 'react';
 import axios, { AxiosInstance } from 'axios';
-import { User, ConnectToAuthProps } from './models';
-import { AuthStore, Unsubscribe } from './authStore';
+import { AuthStore } from './authStore';
 
-export async function login(userName: string, password: string): Promise<User> {
-    const url = AuthStore.get().url;
+export const UAUTH_ERROR_INVALID_REFRESH_TOKEN = 'ErrInvalidRefreshToken';
+export const UAUTH_ERROR_INVALID_USER = 'ErrInvalidUser';
+
+export async function renewRefreshToken(): Promise<void> {
+    const authStore = AuthStore.get();
+    const url = authStore.url;
     if (!url) {
         throw 'URL needs to be configured before usage';
     }
     try {
-        const res = await axios.post(`${url}/api/login`, {
-            user: { userName, password },
+        const res = await axios.post(`${url}/uauth/renewRefreshToken`, {
+            refreshToken: authStore.refreshToken,
         });
-        AuthStore.get().login(res.data.jwt);
-        return res.data.user;
+        if (!res.data || !res.data.refreshToken) {
+            throw 'Could not find refreshToken in response';
+        }
+        authStore.renewRefreshToken(res.data.refreshToken);
+        return;
     } catch (e) {
-        throw e;
+        if (e.response?.data?.error) {
+            if (e.response.data.error === UAUTH_ERROR_INVALID_REFRESH_TOKEN) {
+                authStore.logout();
+                throw 'refreshToken has been deleted';
+            } else if (e.response.data.error === UAUTH_ERROR_INVALID_USER) {
+                authStore.logout();
+                throw 'user has been deleted';
+            } else {
+                throw 'unexpected error ocurred' + JSON.stringify(e.response.data);
+            }
+        } else {
+            throw e;
+        }
     }
 }
 
-export function logout(): void {
-    AuthStore.get().logout();
+export async function accessTokenFromRefreshToken(): Promise<void> {
+    const authStore = AuthStore.get();
+    const url = authStore.url;
+    if (!url) {
+        throw 'URL needs to be configured before usage';
+    }
+    try {
+        const res = await axios.post(`${url}/uauth/accessTokenFromRefreshToken`, {
+            refreshToken: authStore.refreshToken,
+        });
+        if (!res.data || !res.data.accessToken || !res.data.refreshToken) {
+            throw 'Could not find accessToken and/or refreshToken in response';
+        }
+        authStore.login(res.data.accessToken, res.data.refreshToken);
+        return;
+    } catch (e) {
+        if (e.response?.data?.error) {
+            if (e.response.data.error === UAUTH_ERROR_INVALID_REFRESH_TOKEN) {
+                authStore.logout();
+                throw 'refreshToken has been deleted';
+            } else if (e.response.data.error === UAUTH_ERROR_INVALID_USER) {
+                authStore.logout();
+                throw 'user has been deleted';
+            } else {
+                throw 'unexpected error ocurred' + JSON.stringify(e.response.data);
+            }
+        } else {
+            throw e;
+        }
+    }
 }
 
-export function apiRequest(timeout?: number, baseURL: string = AuthStore.get().url): AxiosInstance {
+export async function apiRequest(timeout?: number, baseURL: string = AuthStore.get().url): Promise<AxiosInstance> {
+    const authStore = AuthStore.get();
+    if (!authStore.isLoggedIn) {
+        throw 'cannot create apiRequest (user is not logged in)';
+    }
+
+    // check if accessToken is still valid
+    if (authStore.accessTokenValidUntil && authStore.accessTokenValidUntil < new Date()) {
+        // accessToken is not valid anymore
+        if (authStore.refreshTokenValidUntil && authStore.refreshTokenValidUntil < new Date()) {
+            // refreshToken is not valid anymore
+            throw 'cannot create apiRequest (accessToken and refreshToken expired)';
+        } else {
+            // refreshToken is still valid -> get a new accessToken
+            console.debug('renewing accessToken');
+            await accessTokenFromRefreshToken();
+        }
+    }
+
     return axios.create({
         baseURL,
         timeout: timeout || 5000,
-        headers: { Authorization: `Bearer ${AuthStore.get().jwtToken}` },
+        headers: { Authorization: `Bearer ${AuthStore.get().accessToken}` },
     });
 }
 
@@ -38,33 +101,52 @@ export function apiRequestWithoutAuth(timeout?: number, baseURL: string = AuthSt
     });
 }
 
-export const ConnectToAuth = <P extends object>(Component: React.ComponentType<P & ConnectToAuthProps>) =>
-    class ConnectedComponent extends React.Component<P & ConnectToAuthProps> {
-        state = {
-            user: undefined,
-            loggedIn: false,
-        };
-        unsubscribe?: Unsubscribe;
+export async function login(userName: string, password: string): Promise<void> {
+    const authStore = AuthStore.get();
+    const url = authStore.url;
+    if (!url) {
+        throw 'URL needs to be configured before usage';
+    }
+    try {
+        const res = await axios.post(`${url}/uauth/login`, {
+            user: { userName, password },
+        });
+        if (!res.data || !res.data.accessToken || !res.data.refreshToken) {
+            throw 'Could not find accessToken and/or refreshToken in response';
+        }
 
-        componentDidMount() {
-            const user = AuthStore.get().user();
-            if (user) {
-                this.setState({ user, loggedIn: true });
+        authStore.login(res.data.accessToken, res.data.refreshToken);
+        return;
+    } catch (e) {
+        if (e.response?.data?.error) {
+            if (e.response.data.error === UAUTH_ERROR_INVALID_USER) {
+                console.log('wrong credentials');
+                authStore.logout();
+            } else {
+                throw 'unexpected error ocurred' + JSON.stringify(e.response.data);
             }
-
-            this.unsubscribe = AuthStore.get().addSubscriber((loggedIn: boolean, user?: User) => {
-                this.setState({ loggedIn, user });
-            });
+        } else {
+            throw e;
         }
+    }
+}
 
-        componentWillUnmount() {
-            if (this.unsubscribe) {
-                this.unsubscribe();
-            }
-        }
+export async function deleteRefreshToken(): Promise<void> {
+    const url = AuthStore.get().url;
+    if (!url) {
+        throw 'URL needs to be configured before usage';
+    }
+    try {
+        await (await apiRequest()).post(`${url}/uauth/deleteRefreshToken`, {
+            refreshToken: AuthStore.get().refreshToken,
+        });
+        AuthStore.get().logout();
+        return;
+    } catch (e) {
+        throw e;
+    }
+}
 
-        render() {
-            const { user, loggedIn } = this.state;
-            return <Component {...(this.props as P)} loggedIn={loggedIn} user={user} />;
-        }
-    };
+export async function logout(): Promise<void> {
+    return await deleteRefreshToken();
+}

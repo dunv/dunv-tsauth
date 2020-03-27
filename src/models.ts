@@ -9,7 +9,30 @@ export type User = {
     additionalAttributes?: any;
 };
 
+export interface DefaultJWTClaims {
+    iat: number;
+    exp: number;
+}
+
+export interface AccessToken {
+    claims: DefaultJWTClaims;
+    user: User;
+}
+
+export interface RefreshToken {
+    claims: DefaultJWTClaims;
+    userName: string;
+}
+
 export interface ConnectToAuthProps {
-    loggedIn?: boolean;
+    uauth?: UAuthProps;
+}
+
+export interface UAuthProps {
+    loggedIn: boolean;
     user?: User;
+    accessToken?: string;
+    accessTokenValidUntil?: Date;
+    refreshToken?: string;
+    refreshTokenValidUntil?: Date;
 }
