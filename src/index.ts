@@ -11,4 +11,5 @@ export {
     UAUTH_ERROR_INVALID_USER,
 } from './helpers';
 export { ConnectToAuth } from './connectToAuth';
+export { WithAuth } from './withAuth';
 export { User, DefaultJWTClaims, AccessToken, RefreshToken, ConnectToAuthProps, UAuthProps } from './models';

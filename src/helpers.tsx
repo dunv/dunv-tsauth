@@ -120,8 +120,8 @@ export async function login(userName: string, password: string): Promise<void> {
     } catch (e) {
         if (e.response?.data?.error) {
             if (e.response.data.error === UAUTH_ERROR_INVALID_USER) {
-                console.log('wrong credentials');
                 authStore.logout();
+                throw e.response.data.error;
             } else {
                 throw 'unexpected error ocurred' + JSON.stringify(e.response.data);
             }
