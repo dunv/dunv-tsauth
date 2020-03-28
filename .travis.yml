@@ -1,0 +1,9 @@
+language: node_js
+node_js:
+    - 13.12.x
+
+deploy:
+    edge: true
+    provider: npm
+    on:
+        tags: true
