@@ -25,3 +25,6 @@ CHANGELOG.md
 .gitignore
 tsconfig.json
 tsconfig.tsbuildinfo
+.eslintrc.js
+.prettierrc
+.vscode
