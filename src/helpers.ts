@@ -1,5 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { AuthStore } from './authStore';
+import jwtDecode from 'jwt-decode';
+import { RefreshToken } from './models';
 
 export const UAUTH_ERROR_INVALID_REFRESH_TOKEN = 'ErrInvalidRefreshToken';
 export const UAUTH_ERROR_INVALID_USER = 'ErrInvalidUser';
@@ -142,6 +144,27 @@ export async function deleteRefreshToken(): Promise<void> {
         });
         AuthStore.get().logout();
         return;
+    } catch (e) {
+        throw e;
+    }
+}
+
+export async function listRefreshTokens(): Promise<RefreshToken[]> {
+    const url = AuthStore.get().url;
+    if (!url) {
+        throw 'URL needs to be configured before usage';
+    }
+    try {
+        const {
+            data: { refreshTokens },
+        } = await (await apiRequest()).get(`${url}/uauth/listRefreshTokens`);
+        return refreshTokens.map((token: string) => {
+            const decoded = jwtDecode<RefreshToken>(token);
+            decoded.raw = token;
+            decoded.issuedAt = new Date(decoded.claims.iat * 1000);
+            decoded.expiresAt = new Date(decoded.claims.exp * 1000);
+            return decoded;
+        });
     } catch (e) {
         throw e;
     }

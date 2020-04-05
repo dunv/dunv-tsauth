@@ -7,6 +7,7 @@ export type User = {
     roles: string[];
     jwt: string;
     additionalAttributes?: any;
+    refreshTokens: string[];
 };
 
 export interface DefaultJWTClaims {
@@ -15,13 +16,17 @@ export interface DefaultJWTClaims {
 }
 
 export interface AccessToken {
+    raw: string;
     claims: DefaultJWTClaims;
     user: User;
 }
 
 export interface RefreshToken {
+    raw: string;
     claims: DefaultJWTClaims;
     userName: string;
+    issuedAt?: Date;
+    expiresAt?: Date;
 }
 
 export interface ConnectToAuthProps {
