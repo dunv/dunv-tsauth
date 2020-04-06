@@ -189,5 +189,5 @@ export async function listRefreshTokens(): Promise<RefreshToken[]> {
 }
 
 export async function logout(): Promise<void> {
-    return await deleteRefreshToken();
+    return await deleteCurrentRefreshToken();
 }
