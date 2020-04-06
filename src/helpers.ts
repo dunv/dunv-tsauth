@@ -133,7 +133,7 @@ export async function login(userName: string, password: string): Promise<void> {
     }
 }
 
-export async function deleteRefreshToken(): Promise<void> {
+export async function deleteCurrentRefreshToken(): Promise<void> {
     const url = AuthStore.get().url;
     if (!url) {
         throw 'URL needs to be configured before usage';
@@ -143,6 +143,24 @@ export async function deleteRefreshToken(): Promise<void> {
             refreshToken: AuthStore.get().refreshToken,
         });
         AuthStore.get().logout();
+        return;
+    } catch (e) {
+        throw e;
+    }
+}
+
+export async function deleteRefreshToken(refreshToken: string): Promise<void> {
+    const url = AuthStore.get().url;
+    if (!url) {
+        throw 'URL needs to be configured before usage';
+    }
+    try {
+        await (await apiRequest()).post(`${url}/uauth/deleteRefreshToken`, {
+            refreshToken: refreshToken,
+        });
+        if (AuthStore.get().refreshToken === refreshToken) {
+            AuthStore.get().logout();
+        }
         return;
     } catch (e) {
         throw e;

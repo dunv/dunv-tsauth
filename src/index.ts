@@ -6,6 +6,7 @@ export {
     apiRequestWithoutAuth,
     login,
     deleteRefreshToken,
+    deleteCurrentRefreshToken,
     listRefreshTokens,
     logout,
     UAUTH_ERROR_INVALID_REFRESH_TOKEN,
