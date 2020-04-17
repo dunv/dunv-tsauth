@@ -8,9 +8,9 @@ export const UAUTH_ERROR_INVALID_USER = 'ErrInvalidUser';
 
 const helper = () => {
     const authStore = AuthStore.get();
-    if (!authStore.url) {
-        throw new Error('URL needs to be configured before usage');
-    }
+    // if (!authStore.url) {
+    //     throw new Error('URL needs to be configured before usage');
+    // }
 
     return { url: authStore.url, authStore };
 };
