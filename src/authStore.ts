@@ -6,6 +6,10 @@ import { boundMethod } from 'autobind-decorator';
 export const COOKIE_NAME_ACCESS_TOKEN = 'dunv-auth-access-token';
 export const COOKIE_NAME_REFRESH_TOKEN = 'dunv-auth-refresh-token';
 
+/**
+ * Relevant changes to authStore can be subscribed to by
+ * providing a function with the Subscriber signature
+ */
 export interface Subscriber {
     (props: UAuthProps): void;
 }
