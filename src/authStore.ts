@@ -88,8 +88,8 @@ export class AuthStore {
     @boundMethod
     public renewRefreshToken(refreshToken: string): void {
         this._refreshToken = refreshToken;
-        setCookie(COOKIE_NAME_REFRESH_TOKEN, refreshToken);
         this.calculateDerivedProps();
+        setCookie(COOKIE_NAME_REFRESH_TOKEN, refreshToken, { expires: this._refreshTokenValidUntil });
 
         this.notifySubscribers(this.props);
     }
