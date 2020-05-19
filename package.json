@@ -1,6 +1,6 @@
 {
     "name": "dunv-tsauth",
-    "version": "0.0.22",
+    "version": "0.0.23",
     "description": "Auth helpers",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
