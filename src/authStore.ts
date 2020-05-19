@@ -79,10 +79,9 @@ export class AuthStore {
     public login(accessToken: string, refreshToken: string): void {
         this._accessToken = accessToken;
         this._refreshToken = refreshToken;
-        setCookie(COOKIE_NAME_ACCESS_TOKEN, accessToken);
-        setCookie(COOKIE_NAME_REFRESH_TOKEN, refreshToken);
         this.calculateDerivedProps();
-
+        setCookie(COOKIE_NAME_ACCESS_TOKEN, accessToken, { expires: this._accessTokenValidUntil });
+        setCookie(COOKIE_NAME_REFRESH_TOKEN, refreshToken, { expires: this._refreshTokenValidUntil });
         this.notifySubscribers(this.props);
     }
 
