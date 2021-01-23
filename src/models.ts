@@ -16,28 +16,23 @@ export interface DefaultJWTClaims {
 }
 
 export interface AccessToken {
-    raw: string;
     claims: DefaultJWTClaims;
     user: User;
 }
 
 export interface RefreshToken {
-    raw: string;
     claims: DefaultJWTClaims;
     userName: string;
     issuedAt?: Date;
     expiresAt?: Date;
 }
 
-export interface ConnectToAuthProps {
-    uauth?: UAuthProps;
+export interface Tokens {
+    accessToken: AccessToken;
+    refreshToken: RefreshToken;
 }
 
-export interface UAuthProps {
-    loggedIn: boolean;
-    user?: User;
-    accessToken?: string;
-    accessTokenValidUntil?: Date;
-    refreshToken?: string;
-    refreshTokenValidUntil?: Date;
+export interface RawTokens {
+    accessToken: string;
+    refreshToken: string;
 }
