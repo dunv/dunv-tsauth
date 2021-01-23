@@ -28,3 +28,6 @@ tsconfig.tsbuildinfo
 .eslintrc.js
 .prettierrc
 .vscode
+
+webpack.js
+example
