@@ -93,25 +93,28 @@ export const useUser = (): User | undefined => {
  */
 export const useLogin = (): ((userName: string, password: string) => Promise<boolean>) => {
     const { url, setRawTokens } = React.useContext(authContext);
-    return async (userName: string, password: string) => {
-        try {
-            const res = await axios.post(`${url}/uauth/login`, { user: { userName, password } });
-            if (!res.data || !res.data.accessToken || !res.data.refreshToken) {
-                throw new Error('Could not find accessToken and/or refreshToken in response');
-            }
-            setRawTokens({ accessToken: res.data.accessToken, refreshToken: res.data.refreshToken });
-            return true;
-        } catch (e) {
-            setRawTokens(undefined);
-            if (e.response?.data?.error) {
-                if (e.response.data.error === UAUTH_ERROR_INVALID_USER) {
-                    throw new Error(e.response.data.error);
+    return React.useCallback(
+        async (userName: string, password: string) => {
+            try {
+                const res = await axios.post(`${url}/uauth/login`, { user: { userName, password } });
+                if (!res.data || !res.data.accessToken || !res.data.refreshToken) {
+                    throw new Error('Could not find accessToken and/or refreshToken in response');
                 }
-                throw new Error('unexpected error ocurred' + JSON.stringify(e.response.data));
+                setRawTokens({ accessToken: res.data.accessToken, refreshToken: res.data.refreshToken });
+                return true;
+            } catch (e) {
+                setRawTokens(undefined);
+                if (e.response?.data?.error) {
+                    if (e.response.data.error === UAUTH_ERROR_INVALID_USER) {
+                        throw new Error(e.response.data.error);
+                    }
+                    throw new Error('unexpected error ocurred' + JSON.stringify(e.response.data));
+                }
+                throw new Error('unexpected error ocurred' + JSON.stringify(e));
             }
-            throw new Error('unexpected error ocurred' + JSON.stringify(e));
-        }
-    };
+        },
+        [url, setRawTokens]
+    );
 };
 
 /**
@@ -119,11 +122,15 @@ export const useLogin = (): ((userName: string, password: string) => Promise<boo
  * @param timeout timeout of the request in milliseconds
  */
 export const useApiRequest = (): ((timeout?: number) => Promise<AxiosInstance>) => {
+    console.log('creatingApiRequest');
     const { url, rawTokens, setRawTokens, tokens } = React.useContext(authContext);
-    return (timeout) => {
-        if (!rawTokens || !tokens) throw new Error('needs to authorized first');
-        return _apiRequest(url, rawTokens, setRawTokens, tokens, timeout);
-    };
+    return React.useCallback(
+        (timeout?: number) => {
+            if (!rawTokens || !tokens) throw new Error('needs to authorized first');
+            return _apiRequest(url, rawTokens, setRawTokens, tokens, timeout);
+        },
+        [url, rawTokens, setRawTokens, tokens]
+    );
 };
 
 /**
@@ -132,7 +139,7 @@ export const useApiRequest = (): ((timeout?: number) => Promise<AxiosInstance>) 
  */
 export const useApiRequestWithoutAuth = (): ((timeout?: number) => Promise<AxiosInstance>) => {
     const { url } = React.useContext(authContext);
-    return async (timeout = 5000) => axios.create({ baseURL: url, timeout });
+    return React.useCallback(async (timeout = 5000) => axios.create({ baseURL: url, timeout }), [url]);
 };
 
 /**
@@ -140,7 +147,7 @@ export const useApiRequestWithoutAuth = (): ((timeout?: number) => Promise<Axios
  */
 export const useLogout = (): (() => void) => {
     const { setRawTokens } = React.useContext(authContext);
-    return () => setRawTokens(undefined);
+    return React.useCallback(() => setRawTokens(undefined), [setRawTokens]);
 };
 
 /**
