@@ -122,7 +122,6 @@ export const useLogin = (): ((userName: string, password: string) => Promise<boo
  * @param timeout timeout of the request in milliseconds
  */
 export const useApiRequest = (): ((timeout?: number) => Promise<AxiosInstance>) => {
-    console.log('creatingApiRequest');
     const { url, rawTokens, setRawTokens, tokens } = React.useContext(authContext);
     return React.useCallback(
         (timeout?: number) => {
