@@ -86,6 +86,11 @@ export const useUser = (): User | undefined => {
     return tokens?.accessToken.user;
 };
 
+export const useUrl = (): string => {
+    const { url } = React.useContext(authContext);
+    return url;
+};
+
 /**
  * Helper for logging in an storing auth-information as needed
  * @param userName userName
