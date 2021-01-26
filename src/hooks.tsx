@@ -208,7 +208,7 @@ export const useLogout = (): (() => void) => {
 /**
  * INTERNAL: Get access token from refreshToken
  */
-const _accessTokenFromRefreshToken = async (url: string, rawTokens: RawTokens, setRawTokens: (rawTokens?: RawTokens) => void) => {
+const _accessTokenFromRefreshToken = async (url: string, rawTokens: RawTokens, setRawTokens: (rawTokens?: RawTokens) => void): Promise<RawTokens> => {
     if (!rawTokens) throw new Error('needs to authorized first');
     try {
         const res = await axios.post(`${url}/uauth/accessTokenFromRefreshToken`, { refreshToken: rawTokens?.refreshToken });
@@ -216,7 +216,7 @@ const _accessTokenFromRefreshToken = async (url: string, rawTokens: RawTokens, s
             throw new Error('Could not find accessToken and/or refreshToken in response');
         }
         setRawTokens({ accessToken: res.data.accessToken, refreshToken: res.data.refreshToken });
-        return;
+        return { accessToken: res.data.accessToken, refreshToken: res.data.refreshToken };
     } catch (e) {
         if (e.response?.data?.error) {
             if (e.response.data.error === UAUTH_ERROR_INVALID_REFRESH_TOKEN) {
@@ -269,6 +269,8 @@ export const _apiRequest = async (
     // console.log('accessTokenValidUntil', new Date(tokens.accessToken.claims.exp * 1000));
     // console.log('refreshTokenValidUntil', new Date(tokens.refreshToken.claims.exp * 1000));
 
+    let updatedTokens = rawTokens;
+
     // check if accessToken is still valid
     if (new Date(tokens.accessToken.claims.exp * 1000) < new Date()) {
         // accessToken is not valid anymore
@@ -278,9 +280,9 @@ export const _apiRequest = async (
             throw new Error('cannot create apiRequest (accessToken and refreshToken expired)');
         } else {
             // refreshToken is still valid -> get a new accessToken
-            await _accessTokenFromRefreshToken(url, rawTokens, setRawTokens);
+            updatedTokens = await _accessTokenFromRefreshToken(url, rawTokens, setRawTokens);
         }
     }
 
-    return axios.create({ baseURL: url, timeout, headers: { Authorization: `Bearer ${rawTokens.accessToken}` } });
+    return axios.create({ baseURL: url, timeout, headers: { Authorization: `Bearer ${updatedTokens.accessToken}` } });
 };
