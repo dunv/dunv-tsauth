@@ -1,6 +1,7 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { BrowserRouter } from 'react-router-dom';
+import useInterval from 'react-useinterval';
 import { UAuth, useApiRequest, useApiRequestWithoutAuth, useLogin, useLogout, useUser } from '../src/hooks';
 import { PrivateRoute } from '../src/PrivateRoute';
 
@@ -14,10 +15,18 @@ const LoggedInComponent: React.FC = () => {
         logout();
     };
 
+    useInterval(async () => {
+        try {
+            (await apiRequest()).get('api/listHops');
+        } catch (e) {
+            console.log('err', e);
+        }
+    }, 1000);
+
     const handleRandomRequest = async () => {
         const instance = await apiRequest();
         try {
-            const { data } = await instance.get('api/report');
+            const { data } = await instance.get('api/listHops');
             console.log(data);
         } catch (e) {
             console.log(JSON.stringify(e?.response?.data));
