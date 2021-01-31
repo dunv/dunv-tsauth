@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { get as getCookie, remove as removeCookie, set as setCookie } from 'es-cookie';
 import jwtDecode from 'jwt-decode';
 import * as React from 'react';
@@ -135,6 +135,28 @@ export const useApiRequest = (): ((timeout?: number) => Promise<AxiosInstance>) 
         },
         [url, rawTokens, setRawTokens, tokens]
     );
+};
+
+export const useRequest = <T extends unknown>(
+    fn: (instance: AxiosInstance) => Promise<AxiosResponse>,
+    timeout = 5000
+): [T | undefined, boolean, Error | undefined] => {
+    const [data, setData] = React.useState<T>();
+    const [loadingError, setLoadingError] = React.useState<Error>();
+    const apiRequest = useApiRequest();
+
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const { data } = await fn(await apiRequest(timeout));
+                setData(data);
+            } catch (e) {
+                setLoadingError(e);
+            }
+        })();
+    }, []);
+
+    return [data, data === undefined && loadingError === undefined, loadingError];
 };
 
 /**
