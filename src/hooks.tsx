@@ -137,13 +137,20 @@ export const useApiRequest = (): ((timeout?: number) => Promise<AxiosInstance>) 
     );
 };
 
+/**
+ * A hook for loading data
+ * @param fn needs to return the Axios-Promise (e.g. axios => axios.get('...'))
+ * @param timeout timeout for the axios-instance
+ * @returns [res.data, isLoading, loadingError, refresh()]
+ */
 export const useRequest = <T extends unknown>(
     fn: (instance: AxiosInstance) => Promise<AxiosResponse>,
     timeout = 5000
-): [T | undefined, boolean, Error | undefined] => {
+): [T | undefined, boolean, Error | undefined, () => void] => {
     const [data, setData] = React.useState<T>();
     const [loadingError, setLoadingError] = React.useState<Error>();
     const apiRequest = useApiRequest();
+    const [refresh, setRefresh] = React.useState<boolean>(false);
 
     React.useEffect(() => {
         (async () => {
@@ -154,9 +161,9 @@ export const useRequest = <T extends unknown>(
                 setLoadingError(e);
             }
         })();
-    }, []);
+    }, [refresh]);
 
-    return [data, data === undefined && loadingError === undefined, loadingError];
+    return [data, data === undefined && loadingError === undefined, loadingError, () => setRefresh(!refresh)];
 };
 
 /**
