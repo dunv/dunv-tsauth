@@ -156,19 +156,21 @@ export const useRequest = <T extends unknown>(
     const [refresh, setRefresh] = React.useState<boolean>(false);
 
     React.useEffect(() => {
-        (async () => {
-            try {
-                const res = await fn(await apiRequest(config?.timeout || 5000));
-                if (config?.process) {
-                    setData(config.process(res));
-                } else {
-                    setData(data);
+        if (fn) {
+            (async () => {
+                try {
+                    const res = await fn(await apiRequest(config?.timeout || 5000));
+                    if (config?.process) {
+                        setData(config.process(res));
+                    } else {
+                        setData(data);
+                    }
+                } catch (e) {
+                    setLoadingError(e);
                 }
-            } catch (e) {
-                setLoadingError(e);
-            }
-        })();
-    }, [refresh]);
+            })();
+        }
+    }, [refresh, fn, config]);
 
     return [data, data === undefined && loadingError === undefined, loadingError, () => setRefresh(!refresh)];
 };
