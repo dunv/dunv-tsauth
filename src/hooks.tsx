@@ -145,10 +145,7 @@ export const useApiRequest = (): ((timeout?: number) => Promise<AxiosInstance>) 
  */
 export const useRequest = <T extends unknown>(
     fn: (instance: AxiosInstance) => Promise<AxiosResponse>,
-    config?: {
-        process?: (response: AxiosResponse) => T;
-        timeout?: number;
-    }
+    timeout = 5000
 ): [T | undefined, boolean, Error | undefined, () => void] => {
     const [data, setData] = React.useState<T>();
     const [loadingError, setLoadingError] = React.useState<Error>();
@@ -156,21 +153,15 @@ export const useRequest = <T extends unknown>(
     const [refresh, setRefresh] = React.useState<boolean>(false);
 
     React.useEffect(() => {
-        if (fn) {
-            (async () => {
-                try {
-                    const res = await fn(await apiRequest(config?.timeout || 5000));
-                    if (config?.process) {
-                        setData(config.process(res));
-                    } else {
-                        setData(data);
-                    }
-                } catch (e) {
-                    setLoadingError(e);
-                }
-            })();
-        }
-    }, [refresh, fn, config]);
+        (async () => {
+            try {
+                const { data } = await fn(await apiRequest(timeout));
+                setData(data);
+            } catch (e) {
+                setLoadingError(e);
+            }
+        })();
+    }, [refresh]);
 
     return [data, data === undefined && loadingError === undefined, loadingError, () => setRefresh(!refresh)];
 };
