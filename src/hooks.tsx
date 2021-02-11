@@ -145,7 +145,10 @@ export const useApiRequest = (): ((timeout?: number) => Promise<AxiosInstance>) 
  */
 export const useRequest = <T extends unknown>(
     fn: (instance: AxiosInstance) => Promise<AxiosResponse>,
-    timeout = 5000
+    config?: {
+        process?: (response: AxiosResponse) => T;
+        timeout?: number;
+    }
 ): [T | undefined, boolean, Error | undefined, () => void] => {
     const [data, setData] = React.useState<T>();
     const [loadingError, setLoadingError] = React.useState<Error>();
@@ -155,8 +158,12 @@ export const useRequest = <T extends unknown>(
     React.useEffect(() => {
         (async () => {
             try {
-                const { data } = await fn(await apiRequest(timeout));
-                setData(data);
+                const res = await fn(await apiRequest(config?.timeout || 5000));
+                if (config?.process) {
+                    setData(config.process(res));
+                } else {
+                    setData(data);
+                }
             } catch (e) {
                 setLoadingError(e);
             }
