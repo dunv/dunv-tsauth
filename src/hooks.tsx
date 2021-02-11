@@ -153,22 +153,25 @@ export const useRequest = <T extends unknown>(
     const [data, setData] = React.useState<T>();
     const [loadingError, setLoadingError] = React.useState<Error>();
     const apiRequest = useApiRequest();
+    const isLoggedIn = useIsLoggedIn();
     const [refresh, setRefresh] = React.useState<boolean>(false);
 
     React.useEffect(() => {
-        (async () => {
-            try {
-                const res = await fn(await apiRequest(config?.timeout || 5000));
-                if (config?.process) {
-                    setData(config.process(res));
-                } else {
-                    setData(data);
+        if (isLoggedIn) {
+            (async () => {
+                try {
+                    const res = await fn(await apiRequest(config?.timeout || 5000));
+                    if (config?.process) {
+                        setData(config.process(res));
+                    } else {
+                        setData(data);
+                    }
+                } catch (e) {
+                    setLoadingError(e);
                 }
-            } catch (e) {
-                setLoadingError(e);
-            }
-        })();
-    }, [refresh]);
+            })();
+        }
+    }, [refresh, isLoggedIn]);
 
     return [data, data === undefined && loadingError === undefined, loadingError, () => setRefresh(!refresh)];
 };
