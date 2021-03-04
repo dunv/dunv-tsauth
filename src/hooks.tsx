@@ -91,6 +91,11 @@ export const useUrl = (): string => {
     return url;
 };
 
+export const useSetRawToken = (): ((rawTokens?: RawTokens) => void) => {
+    const { setRawTokens } = React.useContext(authContext);
+    return setRawTokens;
+};
+
 /**
  * Helper for logging in an storing auth-information as needed
  * @param userName userName
