@@ -47,8 +47,14 @@ export const UAuth: React.FC<UAuthProps> = ({ url, children }: UAuthProps) => {
         if (rawTokens) {
             const accessToken = jwtDecode<AccessToken>(rawTokens.accessToken);
             const refreshToken = jwtDecode<RefreshToken>(rawTokens.refreshToken);
-            setCookie(COOKIE_NAME_ACCESS_TOKEN, rawTokens.accessToken, { expires: new Date(accessToken.claims.exp * 1000) });
-            setCookie(COOKIE_NAME_REFRESH_TOKEN, rawTokens.refreshToken, { expires: new Date(refreshToken.claims.exp * 1000) });
+            setCookie(COOKIE_NAME_ACCESS_TOKEN, rawTokens.accessToken, {
+                expires: new Date(accessToken.claims.exp * 1000),
+                sameSite: 'strict',
+            });
+            setCookie(COOKIE_NAME_REFRESH_TOKEN, rawTokens.refreshToken, {
+                expires: new Date(refreshToken.claims.exp * 1000),
+                sameSite: 'strict',
+            });
             setTokens({ accessToken, refreshToken });
             return;
         }
