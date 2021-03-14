@@ -1,8 +1,7 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { BrowserRouter } from 'react-router-dom';
-import useInterval from 'react-useinterval';
-import { UAuth, useApiRequest, useApiRequestWithoutAuth, useLogin, useLogout, useUser } from '../src/hooks';
+import { UAuth, useApiRequest, useApiRequestWithoutAuth, useDeleteRefreshToken, useLogin, useLogout, useRefreshTokens, useUser } from '../src/hooks';
 import { PrivateRoute } from '../src/PrivateRoute';
 
 const LoggedInComponent: React.FC = () => {
@@ -10,23 +9,23 @@ const LoggedInComponent: React.FC = () => {
     const apiRequest = useApiRequest();
     const user = useUser();
 
+    const { refreshTokens, refresh } = useRefreshTokens();
+    const deleteRefreshToken = useDeleteRefreshToken();
+
     const handleLogout: React.ReactEventHandler = async (e) => {
         e.preventDefault();
         logout();
     };
 
-    useInterval(async () => {
-        try {
-            (await apiRequest()).get('api/listHops');
-        } catch (e) {
-            console.log('err', e);
-        }
-    }, 1000);
+    const handleRefreshTokenDelete = async (rawToken: string) => {
+        await deleteRefreshToken(rawToken);
+        refresh();
+    };
 
     const handleRandomRequest = async () => {
         const instance = await apiRequest();
         try {
-            const { data } = await instance.get('api/listHops');
+            const { data } = await instance.get('uauth/listUsers');
             console.log(data);
         } catch (e) {
             console.log(JSON.stringify(e?.response?.data));
@@ -38,6 +37,16 @@ const LoggedInComponent: React.FC = () => {
             <button onClick={handleRandomRequest}>RandomRequest</button>
             <button onClick={handleLogout}>Logout</button>
             {user && <pre>{JSON.stringify(user, null, 2)}</pre>}
+            {refreshTokens && (
+                <div>
+                    {refreshTokens?.map((token, index) => (
+                        <pre key={index}>
+                            <button onClick={() => handleRefreshTokenDelete(token.raw)}>Delete</button>
+                            {JSON.stringify(token.decoded, null, '  ')}
+                        </pre>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
@@ -106,7 +115,7 @@ document.body.appendChild(rootDiv);
 
 ReactDOM.render(
     <BrowserRouter>
-        <UAuth url={'http://localhost:8080'}>
+        <UAuth url={'http://localhost:8080'} debug={false}>
             <PrivateRoute path="/" exact component={LoggedInComponent} loginComponent={LoginForm} />
         </UAuth>
     </BrowserRouter>,

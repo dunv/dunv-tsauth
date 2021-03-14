@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosError, AxiosInstance, AxiosResponse } from 'axios';
 import { get as getCookie, remove as removeCookie, set as setCookie } from 'es-cookie';
 import jwtDecode from 'jwt-decode';
 import * as React from 'react';
@@ -12,6 +12,7 @@ export const UAUTH_ERROR_INVALID_USER = 'ErrInvalidUser';
 
 // For some reason need to provide a default context...
 const authContext = React.createContext<UAuthValues>({
+    debug: false,
     setRawTokens: () => {
         throw new Error('using unitialized context');
     },
@@ -21,47 +22,83 @@ authContext.displayName = 'dunv-tsauth';
 
 interface UAuthProps {
     url: string;
+    debug?: boolean;
     children: JSX.Element[] | JSX.Element;
 }
 
 interface UAuthValues {
     rawTokens?: RawTokens;
+    debug: boolean;
     tokens?: Tokens;
     url: string;
     setRawTokens: (rawTokens?: RawTokens) => void;
 }
 
-export const UAuth: React.FC<UAuthProps> = ({ url, children }: UAuthProps) => {
-    // Read cookies here on initial run, so no effects get called with invalid values. (i.e. rawTokens of undefined, even if they should not be)
-    const [rawTokens, setRawTokens] = React.useState<RawTokens | undefined>((): RawTokens | undefined => {
-        const accessToken = getCookie(COOKIE_NAME_ACCESS_TOKEN);
-        const refreshToken = getCookie(COOKIE_NAME_REFRESH_TOKEN);
-        if (accessToken && refreshToken) {
-            return { accessToken, refreshToken };
-        }
-        return undefined;
-    });
+export const UAuth: React.FC<UAuthProps> = ({ url, children, debug = false }: UAuthProps) => {
+    const [initComplete, setInitComplete] = React.useState<boolean>(false);
+    const [rawTokens, setRawTokens] = React.useState<RawTokens>();
     const [tokens, setTokens] = React.useState<Tokens>();
 
     React.useEffect(() => {
-        if (rawTokens) {
-            const accessToken = jwtDecode<AccessToken>(rawTokens.accessToken);
-            const refreshToken = jwtDecode<RefreshToken>(rawTokens.refreshToken);
-            setCookie(COOKIE_NAME_ACCESS_TOKEN, rawTokens.accessToken, {
-                expires: new Date(accessToken.claims.exp * 1000),
-                sameSite: 'lax',
-            });
-            setCookie(COOKIE_NAME_REFRESH_TOKEN, rawTokens.refreshToken, {
-                expires: new Date(refreshToken.claims.exp * 1000),
-                sameSite: 'lax',
-            });
-            setTokens({ accessToken, refreshToken });
-            return;
-        }
-        removeCookie(COOKIE_NAME_ACCESS_TOKEN);
-        removeCookie(COOKIE_NAME_REFRESH_TOKEN);
-        setTokens(undefined);
-    }, [rawTokens]);
+        (async () => {
+            const accessToken = getCookie(COOKIE_NAME_ACCESS_TOKEN);
+            const refreshToken = getCookie(COOKIE_NAME_REFRESH_TOKEN);
+
+            debug && console.debug('dunv-tsauth: logging in via cookie...');
+            if (accessToken && refreshToken) {
+                debug && console.debug('dunv-tsauth: ...success logging in via cookie');
+                setInitComplete(true);
+                setRawTokens({ accessToken, refreshToken });
+                return;
+            }
+
+            if (refreshToken) {
+                debug && console.debug('dunv-tsauth: - found only refreshToken, refreshing accessToken');
+                try {
+                    const refreshedTokens = await _accessTokenFromRefreshToken(url, { accessToken: '', refreshToken });
+                    setInitComplete(true);
+                    setRawTokens(refreshedTokens);
+                    debug && console.debug('dunv-tsauth: ...success loggin in via cookie');
+                } catch (e) {
+                    setInitComplete(true);
+                    debug && console.log(`dunv-tsauth: ...failed logging in via cookie (${e})`);
+                }
+                return;
+            }
+
+            setInitComplete(true);
+            debug && console.log('dunv-tsauth: ...failed logging in via cookie (no tokens present)');
+        })();
+    }, []);
+
+    // Decode/renew tokens or cleanup
+    React.useEffect(() => {
+        (async () => {
+            if (initComplete) {
+                debug && console.log('dunv-tsauth: running token-decode...');
+                if (rawTokens) {
+                    const refreshToken = jwtDecode<RefreshToken>(rawTokens.refreshToken);
+                    setCookie(COOKIE_NAME_REFRESH_TOKEN, rawTokens.refreshToken, {
+                        expires: new Date(refreshToken.claims.exp * 1000),
+                        sameSite: 'lax',
+                    });
+                    const accessToken = jwtDecode<AccessToken>(rawTokens.accessToken);
+                    setCookie(COOKIE_NAME_ACCESS_TOKEN, rawTokens.accessToken, {
+                        expires: new Date(accessToken.claims.exp * 1000),
+                        sameSite: 'lax',
+                    });
+                    setTokens({ accessToken, refreshToken });
+                    debug && console.log('dunv-tsauth: ...success running token-decode');
+                    return;
+                }
+
+                removeCookie(COOKIE_NAME_ACCESS_TOKEN);
+                removeCookie(COOKIE_NAME_REFRESH_TOKEN);
+                setTokens(undefined);
+                debug && console.log('dunv-tsauth: ...failed running token-decode (no rawTokens present)');
+            }
+        })();
+    }, [rawTokens, debug, initComplete]);
 
     return (
         <authContext.Provider
@@ -69,6 +106,7 @@ export const UAuth: React.FC<UAuthProps> = ({ url, children }: UAuthProps) => {
                 rawTokens,
                 tokens,
                 url,
+                debug,
                 setRawTokens,
             }}
         >
@@ -108,18 +146,21 @@ export const useSetRawToken = (): ((rawTokens?: RawTokens) => void) => {
  * @param password password in plaintext
  */
 export const useLogin = (): ((userName: string, password: string) => Promise<boolean>) => {
-    const { url, setRawTokens } = React.useContext(authContext);
+    const { url, setRawTokens, debug } = React.useContext(authContext);
     return React.useCallback(
         async (userName: string, password: string) => {
             try {
+                debug && console.debug('dunv-tsauth: logging in via request...');
                 const res = await axios.post(`${url}/uauth/login`, { user: { userName, password } });
                 if (!res.data || !res.data.accessToken || !res.data.refreshToken) {
                     throw new Error('Could not find accessToken and/or refreshToken in response');
                 }
                 setRawTokens({ accessToken: res.data.accessToken, refreshToken: res.data.refreshToken });
+                debug && console.debug('dunv-tsauth: ...success logging in via request');
                 return true;
             } catch (e) {
                 setRawTokens(undefined);
+                debug && console.debug('dunv-tsauth: ...failed logging in via request');
                 if (e.response?.data?.error) {
                     if (e.response.data.error === UAUTH_ERROR_INVALID_USER) {
                         throw new Error(e.response.data.error);
@@ -138,53 +179,68 @@ export const useLogin = (): ((userName: string, password: string) => Promise<boo
  * @param timeout timeout of the request in milliseconds
  */
 export const useApiRequest = (): ((timeout?: number) => Promise<AxiosInstance>) => {
-    const { url, rawTokens, setRawTokens, tokens } = React.useContext(authContext);
+    const { url, rawTokens, setRawTokens, tokens, debug } = React.useContext(authContext);
     return React.useCallback(
         (timeout?: number) => {
-            if (!rawTokens || !tokens) throw new Error('needs to authorized first');
-            return _apiRequest(url, rawTokens, setRawTokens, tokens, timeout);
+            if (!rawTokens || !tokens) throw new Error('needs to be authorized first');
+            return _apiRequest(url, rawTokens, setRawTokens, tokens, debug, timeout);
         },
-        [url, rawTokens, setRawTokens, tokens]
+        [url, rawTokens, setRawTokens, tokens, debug]
     );
 };
 
+export interface RequestConfig<T> {
+    process?: (response: AxiosResponse) => T;
+    timeout?: number;
+}
+
 /**
  * A hook for loading data
- * @param fn needs to return the Axios-Promise (e.g. axios => axios.get('...'))
- * @param timeout timeout for the axios-instance
- * @returns [res.data, isLoading, loadingError, refresh()]
  */
 export const useRequest = <T extends unknown>(
     fn: (instance: AxiosInstance) => Promise<AxiosResponse>,
-    config?: {
-        process?: (response: AxiosResponse) => T;
-        timeout?: number;
-    }
-): [T | undefined, boolean, Error | undefined, () => void] => {
+    config?: RequestConfig<T>
+): [T | undefined, boolean, AxiosError | undefined, () => void] => {
     const [data, setData] = React.useState<T>();
-    const [loadingError, setLoadingError] = React.useState<Error>();
+    const [loadingError, setLoadingError] = React.useState<AxiosError>();
     const apiRequest = useApiRequest();
     const isLoggedIn = useIsLoggedIn();
     const [refresh, setRefresh] = React.useState<boolean>(false);
 
+    const refreshFn = React.useRef<() => void>(() => setRefresh(!refresh));
     React.useEffect(() => {
-        if (isLoggedIn) {
+        refreshFn.current = () => setRefresh(!refresh);
+    }, [refresh]);
+
+    const savedFn = React.useRef<(instance: AxiosInstance) => Promise<AxiosResponse>>();
+    React.useEffect(() => {
+        savedFn.current = fn;
+    }, [fn]);
+
+    const savedConfig = React.useRef<RequestConfig<T>>();
+    React.useEffect(() => {
+        savedConfig.current = config;
+    }, [config]);
+
+    React.useEffect(() => {
+        if (isLoggedIn && savedFn && savedFn?.current) {
             (async () => {
                 try {
-                    const res = await fn(await apiRequest(config?.timeout || 5000));
-                    if (config?.process) {
-                        setData(config.process(res));
+                    const res = await savedFn!.current!(await apiRequest(savedConfig?.current?.timeout || 5000));
+                    setLoadingError(undefined);
+                    if (savedConfig?.current?.process) {
+                        setData(savedConfig.current.process(res));
                     } else {
-                        setData(data);
+                        setData(res.data);
                     }
                 } catch (e) {
                     setLoadingError(e);
                 }
             })();
         }
-    }, [refresh, isLoggedIn]);
+    }, [apiRequest, refresh, isLoggedIn, savedFn, savedConfig]);
 
-    return [data, data === undefined && loadingError === undefined, loadingError, () => setRefresh(!refresh)];
+    return [data, data === undefined && loadingError === undefined, loadingError, refreshFn.current];
 };
 
 /**
@@ -200,69 +256,107 @@ export const useApiRequestWithoutAuth = (): ((timeout?: number) => Promise<Axios
  * Helper for logging out (cleans up AuthStore and tries to delete the current refreshToken)
  */
 export const useLogout = (): (() => void) => {
-    const { setRawTokens } = React.useContext(authContext);
-    return React.useCallback(() => setRawTokens(undefined), [setRawTokens]);
+    const { url, rawTokens, setRawTokens, debug } = React.useContext(authContext);
+    const apiRequest = useApiRequest();
+    return React.useCallback(async () => {
+        if (rawTokens) {
+            debug && console.debug('dunv-tsauth: logging out...');
+            await _deleteRefreshToken(apiRequest(), url, debug, rawTokens?.refreshToken, rawTokens, setRawTokens);
+            setRawTokens(undefined);
+            debug && console.debug('dunv-tsauth: ...success (logging out)');
+        }
+    }, [apiRequest, debug, url, rawTokens, setRawTokens]);
 };
 
 /**
- * Helper for deleting the current refreshToken
- * Cleans up authStore and requests deletion of the current token
+ * Helper for listing refreshTokens of the current user
  */
-// export const deleteCurrentRefreshToken = (): Promise<void> {
-//     const { url, rawTokens, setRawTokens } = React.useContext(authContext);
-
-//     try {
-//         await (await apiRequest()).post(`${url}/uauth/deleteRefreshToken`, { refreshToken: authStore.refreshToken });
-//         authStore.logout();
-//     } catch (e) {
-//         authStore.logout();
-//         throw e;
-//     }
-// }
+export const useRefreshTokens = (): {
+    refreshTokens:
+        | {
+              decoded: RefreshToken;
+              raw: string;
+          }[]
+        | undefined;
+    isLoading: boolean;
+    loadingError: AxiosError | undefined;
+    refresh: () => void;
+} => {
+    const [data, isLoading, loadingError, refresh] = useRequest<
+        | {
+              decoded: RefreshToken;
+              raw: string;
+          }[]
+        | undefined
+    >((axios) => axios.get(`/uauth/listRefreshTokens`), {
+        process: (res) =>
+            res.data?.refreshTokens?.map((token: string) => {
+                const decoded = jwtDecode<RefreshToken>(token);
+                decoded.issuedAt = new Date(decoded.claims.iat * 1000);
+                decoded.expiresAt = new Date(decoded.claims.exp * 1000);
+                return {
+                    decoded,
+                    raw: token,
+                };
+            }),
+    });
+    return {
+        refreshTokens: data,
+        isLoading,
+        loadingError,
+        refresh,
+    };
+};
 
 /**
  * Helper for deleting any refreshToken of the current user
  * @param refreshToken refreshToken to be deleted
  */
-// export async function deleteRefreshToken(refreshToken: string): Promise<void> {
-//     const { url, authStore } = helper();
-
-//     try {
-//         await (await apiRequest()).post(`${url}/uauth/deleteRefreshToken`, { refreshToken: refreshToken });
-//         if (authStore.refreshToken === refreshToken) authStore.logout();
-//     } catch (e) {
-//         throw e;
-//     }
-// }
+export const useDeleteRefreshToken = (): ((refreshToken: string) => Promise<void>) => {
+    const { url, rawTokens, setRawTokens, debug } = React.useContext(authContext);
+    const apiRequest = useApiRequest();
+    return React.useCallback(async (refreshToken: string) => _deleteRefreshToken(apiRequest(), url, debug, refreshToken, rawTokens, setRawTokens), [
+        url,
+        apiRequest,
+        rawTokens,
+        setRawTokens,
+    ]);
+};
 
 /**
- * Helper for listing refreshTokens of the current user
+ * INTERNAL: deleteRefreshToken
  */
-// export const useRefreshTokens = (): (() => Promise<RefreshToken[]>) => {
-//     try {
-//         const {
-//             data: { refreshTokens },
-//         } = await(await apiRequest()).get(`${url}/uauth/listRefreshTokens`);
-//         return refreshTokens.map((token: string) => {
-//             const decoded = jwtDecode<RefreshToken>(token);
-//             decoded.raw = token;
-//             decoded.issuedAt = new Date(decoded.claims.iat * 1000);
-//             decoded.expiresAt = new Date(decoded.claims.exp * 1000);
-//             return decoded;
-//         });
-//     } catch (e) {
-//         throw e;
-//     }
-// };
+const _deleteRefreshToken = async (
+    apiRequest: Promise<AxiosInstance>,
+    url: string,
+    debug: boolean,
+    refreshToken: string,
+    rawTokens: RawTokens | undefined,
+    setRawTokens: (rawTokens?: RawTokens) => void
+): Promise<void> => {
+    try {
+        debug && console.log('dunv-tsauth: deleting refreshToken...');
+        await (await apiRequest).post(`${url}/uauth/deleteRefreshToken`, { refreshToken });
+        if (refreshToken === rawTokens?.refreshToken) {
+            debug && console.log('dunv-tsauth: - deleted current refreshToken (-> implicit logout)');
+            setRawTokens(undefined);
+        }
+        debug && console.log('dunv-tsauth: ...success deleting refreshToken');
+    } catch (e) {
+        debug && console.log(`dunv-tsauth: ...failed deleting current refreshToken (${e})`);
+        throw e;
+    }
+};
 
 /**
  * INTERNAL: apiRequest
  */
-export const _apiRequest = async (
+const _apiRequest = async (
     url: string,
     rawTokens: RawTokens,
     setRawTokens: (rawTokens?: RawTokens) => void,
     tokens: Tokens,
+    debug: boolean,
     timeout = 5000
 ): Promise<AxiosInstance> => {
     const accessTokenValid = new Date(tokens.accessToken.claims.exp * 1000) > new Date();
@@ -287,7 +381,7 @@ export const _apiRequest = async (
 
     // renew refreshToken if nearing its expiry
     if (remainingRefreshTokenValidity / totalRefreshTokenValidity < 0.5 && refreshTokenValid) {
-        console.log('dunv-tsauth: less than 50% of refreshTokenValidity remaining -> refreshing now');
+        debug && console.log('dunv-tsauth: less than 50% of refreshTokenValidity remaining -> refreshing now');
         const updatedRawTokens = await _renewRefreshToken(url, rawTokens);
         setRawTokens(updatedRawTokens);
         return axios.create({ baseURL: url, timeout, headers: { Authorization: `Bearer ${updatedRawTokens.accessToken}` } });
@@ -307,7 +401,7 @@ export const _apiRequest = async (
     }
 
     // if all tokens expired, the only thing remaining is logging in again
-    console.log('dunv-tsauth: accessToken and refreshToken expired');
+    debug && console.log('dunv-tsauth: accessToken and refreshToken expired');
     setRawTokens(undefined);
     throw new Error('cannot create apiRequest (accessToken and refreshToken expired)');
 };
@@ -317,7 +411,7 @@ export const _apiRequest = async (
  * only getter, will not change state
  */
 const _accessTokenFromRefreshToken = async (url: string, rawTokens: RawTokens): Promise<RawTokens> => {
-    if (!rawTokens) throw new Error('needs to authorized first');
+    if (!rawTokens) throw new Error('needs to be authorized first');
     try {
         const res = await axios.post(`${url}/uauth/accessTokenFromRefreshToken`, { refreshToken: rawTokens?.refreshToken });
         if (!res.data || !res.data.accessToken || !res.data.refreshToken) {
@@ -341,7 +435,7 @@ const _accessTokenFromRefreshToken = async (url: string, rawTokens: RawTokens): 
  * only getter, will not change state
  */
 const _renewRefreshToken = async (url: string, rawTokens: RawTokens): Promise<RawTokens> => {
-    if (!rawTokens) throw new Error('needs to authorized first');
+    if (!rawTokens) throw new Error('needs to be authorized first');
     try {
         const res = await axios.post(`${url}/uauth/renewRefreshToken`, { refreshToken: rawTokens.refreshToken });
         if (!res.data || !res.data.refreshToken) {
