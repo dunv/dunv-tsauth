@@ -1,15 +1,17 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { BrowserRouter } from 'react-router-dom';
-import { UAuth, useApiRequest, useApiRequestWithoutAuth, useDeleteRefreshToken, useLogin, useLogout, useRefreshTokens, useUser } from '../src/hooks';
+import { UAuth } from '../src/AuthContext';
+import { useDeleteRefreshToken, useLogin, useLogout, useRefreshTokens, useUser } from '../src/hooks';
 import { PrivateRoute } from '../src/PrivateRoute';
+import { useApiRequest, useApiRequestWithoutAuth } from '../src/useRequest';
 
 const LoggedInComponent: React.FC = () => {
     const logout = useLogout();
     const apiRequest = useApiRequest();
     const user = useUser();
 
-    const { refreshTokens, refresh } = useRefreshTokens();
+    const { data: refreshTokens, refresh } = useRefreshTokens();
     const deleteRefreshToken = useDeleteRefreshToken();
 
     const handleLogout: React.ReactEventHandler = async (e) => {
