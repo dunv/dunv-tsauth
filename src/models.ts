@@ -10,6 +10,20 @@ export type User = {
     refreshTokens: string[];
 };
 
+export type TransferUser = {
+    userName: string;
+    firstName: string;
+    lastName: string;
+    password: string;
+    roles: string[];
+    additionalAttributes?: any;
+};
+
+export type Role = {
+    name: string;
+    permissions: string[];
+};
+
 export interface DefaultJWTClaims {
     iat: number;
     exp: number;

@@ -1,12 +1,12 @@
 import axios, { AxiosInstance } from 'axios';
 import { UAUTH_ERROR_INVALID_REFRESH_TOKEN, UAUTH_ERROR_INVALID_USER } from './AuthContext';
 import { RawTokens, Tokens } from './models';
+import { UAUTH_URL_ACCESS_TOKEN_FROM_REFRESH_TOKEN, UAUTH_URL_DELETE_REFRESH_TOKEN, UAUTH_URL_RENEW_REFRESH_TOKEN } from './urls';
 
 /**
  * INTERNAL: deleteRefreshToken
  */
 export const _deleteRefreshToken = async (
-    apiRequest: Promise<AxiosInstance>,
     url: string,
     debug: boolean,
     refreshToken: string,
@@ -15,7 +15,7 @@ export const _deleteRefreshToken = async (
 ): Promise<void> => {
     try {
         debug && console.log('dunv-tsauth: deleting refreshToken...');
-        await (await apiRequest).post(`${url}/uauth/deleteRefreshToken`, { refreshToken });
+        await axios.post(`${url}${UAUTH_URL_DELETE_REFRESH_TOKEN}`, { refreshToken });
         if (refreshToken === rawTokens?.refreshToken) {
             debug && console.log('dunv-tsauth: - deleted current refreshToken (-> implicit logout)');
             setRawTokens(undefined);
@@ -92,7 +92,7 @@ export const _apiRequest = async (
 export const _accessTokenFromRefreshToken = async (url: string, rawTokens: RawTokens): Promise<RawTokens> => {
     if (!rawTokens) throw new Error('needs to be authorized first');
     try {
-        const res = await axios.post(`${url}/uauth/accessTokenFromRefreshToken`, { refreshToken: rawTokens?.refreshToken });
+        const res = await axios.post(`${url}${UAUTH_URL_ACCESS_TOKEN_FROM_REFRESH_TOKEN}`, { refreshToken: rawTokens?.refreshToken });
         if (!res.data || !res.data.accessToken || !res.data.refreshToken) {
             throw new Error('Could not find accessToken and/or refreshToken in response');
         }
@@ -116,7 +116,7 @@ export const _accessTokenFromRefreshToken = async (url: string, rawTokens: RawTo
 export const _renewRefreshToken = async (url: string, rawTokens: RawTokens): Promise<RawTokens> => {
     if (!rawTokens) throw new Error('needs to be authorized first');
     try {
-        const res = await axios.post(`${url}/uauth/renewRefreshToken`, { refreshToken: rawTokens.refreshToken });
+        const res = await axios.post(`${url}${UAUTH_URL_RENEW_REFRESH_TOKEN}`, { refreshToken: rawTokens.refreshToken });
         if (!res.data || !res.data.refreshToken) {
             throw new Error('Could not find refreshToken in response');
         }

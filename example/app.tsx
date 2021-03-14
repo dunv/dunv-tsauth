@@ -4,15 +4,22 @@ import { BrowserRouter } from 'react-router-dom';
 import { UAuth } from '../src/AuthContext';
 import { useDeleteRefreshToken, useLogin, useLogout, useRefreshTokens, useUser } from '../src/hooks';
 import { PrivateRoute } from '../src/PrivateRoute';
-import { useApiRequest, useApiRequestWithoutAuth } from '../src/useRequest';
+import { useApiRequestWithoutAuth } from '../src/useRequest';
+import { useGetUser } from '../src/userManagement';
 
 const LoggedInComponent: React.FC = () => {
     const logout = useLogout();
-    const apiRequest = useApiRequest();
     const user = useUser();
+    const getUser = useGetUser();
 
     const { data: refreshTokens, refresh } = useRefreshTokens();
     const deleteRefreshToken = useDeleteRefreshToken();
+
+    // const { data: users } = useUsers();
+    // console.log('users', users);
+
+    // const { data: roles } = useRoles();
+    // console.log('roles', roles);
 
     const handleLogout: React.ReactEventHandler = async (e) => {
         e.preventDefault();
@@ -25,13 +32,8 @@ const LoggedInComponent: React.FC = () => {
     };
 
     const handleRandomRequest = async () => {
-        const instance = await apiRequest();
-        try {
-            const { data } = await instance.get('uauth/listUsers');
-            console.log(data);
-        } catch (e) {
-            console.log(JSON.stringify(e?.response?.data));
-        }
+        const user = await getUser('604dc71ef81c6fa53d7ca589');
+        console.log('user', user);
     };
 
     return (

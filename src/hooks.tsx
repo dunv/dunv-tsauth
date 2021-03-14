@@ -1,10 +1,11 @@
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 import jwtDecode from 'jwt-decode';
 import * as React from 'react';
 import { authContext, UAUTH_ERROR_INVALID_USER } from './AuthContext';
 import { _deleteRefreshToken } from './internal';
 import { RawTokens, RefreshToken, User } from './models';
-import { useApiRequest, useRequest } from './useRequest';
+import { UAUTH_URL_LIST_REFRESH_TOKENS, UAUTH_URL_LOGIN } from './urls';
+import { UseRequest, useRequest } from './useRequest';
 
 export const useIsLoggedIn = (): boolean => {
     const { tokens } = React.useContext(authContext);
@@ -42,7 +43,7 @@ export const useLogin = (): ((userName: string, password: string) => Promise<boo
         async (userName: string, password: string) => {
             try {
                 debug && console.debug('dunv-tsauth: logging in via request...');
-                const res = await axios.post(`${url}/uauth/login`, { user: { userName, password } });
+                const res = await axios.post(`${url}${UAUTH_URL_LOGIN}`, { user: { userName, password } });
                 if (!res.data || !res.data.accessToken || !res.data.refreshToken) {
                     throw new Error('Could not find accessToken and/or refreshToken in response');
                 }
@@ -61,7 +62,7 @@ export const useLogin = (): ((userName: string, password: string) => Promise<boo
                 throw new Error('unexpected error ocurred' + JSON.stringify(e));
             }
         },
-        [url, setRawTokens]
+        [url, setRawTokens, debug]
     );
 };
 /**
@@ -69,38 +70,31 @@ export const useLogin = (): ((userName: string, password: string) => Promise<boo
  */
 export const useLogout = (): (() => void) => {
     const { url, rawTokens, setRawTokens, debug } = React.useContext(authContext);
-    const apiRequest = useApiRequest();
     return React.useCallback(async () => {
         if (rawTokens) {
             debug && console.debug('dunv-tsauth: logging out...');
-            await _deleteRefreshToken(apiRequest(), url, debug, rawTokens?.refreshToken, rawTokens, setRawTokens);
+            await _deleteRefreshToken(url, debug, rawTokens?.refreshToken, rawTokens, setRawTokens);
             setRawTokens(undefined);
             debug && console.debug('dunv-tsauth: ...success (logging out)');
         }
-    }, [apiRequest, debug, url, rawTokens, setRawTokens]);
+    }, [debug, url, rawTokens, setRawTokens]);
 };
 
 /**
  * Helper for listing refreshTokens of the current user
  */
-export const useRefreshTokens = (): {
-    data:
-        | {
-              decoded: RefreshToken;
-              raw: string;
-          }[]
-        | undefined;
-    isLoading: boolean;
-    hasError: AxiosError | undefined;
-    refresh: () => void;
-} => {
+export const useRefreshTokens = (): UseRequest<
+    {
+        decoded: RefreshToken;
+        raw: string;
+    }[]
+> => {
     return useRequest<
-        | {
-              decoded: RefreshToken;
-              raw: string;
-          }[]
-        | undefined
-    >((axios) => axios.get(`/uauth/listRefreshTokens`), {
+        {
+            decoded: RefreshToken;
+            raw: string;
+        }[]
+    >((axios) => axios.get(UAUTH_URL_LIST_REFRESH_TOKENS), {
         process: (res) =>
             res.data?.refreshTokens?.map((token: string) => {
                 const decoded = jwtDecode<RefreshToken>(token);
@@ -120,11 +114,10 @@ export const useRefreshTokens = (): {
  */
 export const useDeleteRefreshToken = (): ((refreshToken: string) => Promise<void>) => {
     const { url, rawTokens, setRawTokens, debug } = React.useContext(authContext);
-    const apiRequest = useApiRequest();
-    return React.useCallback(async (refreshToken: string) => _deleteRefreshToken(apiRequest(), url, debug, refreshToken, rawTokens, setRawTokens), [
+    return React.useCallback(async (refreshToken: string) => _deleteRefreshToken(url, debug, refreshToken, rawTokens, setRawTokens), [
         url,
-        apiRequest,
         rawTokens,
         setRawTokens,
+        debug,
     ]);
 };
