@@ -73,9 +73,14 @@ export const useLogout = (): (() => void) => {
     return React.useCallback(async () => {
         if (rawTokens) {
             debug && console.debug('dunv-tsauth: logging out...');
-            await _deleteRefreshToken(url, debug, rawTokens?.refreshToken, rawTokens, setRawTokens);
-            setRawTokens(undefined);
-            debug && console.debug('dunv-tsauth: ...success (logging out)');
+            try {
+                await _deleteRefreshToken(url, debug, rawTokens?.refreshToken, rawTokens, setRawTokens);
+            } catch (e) {
+                throw e;
+            } finally {
+                setRawTokens(undefined);
+                debug && console.debug('dunv-tsauth: ...success (logging out)');
+            }
         }
     }, [debug, url, rawTokens, setRawTokens]);
 };
