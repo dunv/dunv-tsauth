@@ -69,10 +69,10 @@ export const useRequest = <T extends unknown>(
     }, [config]);
 
     React.useEffect(() => {
-        if (isLoggedIn && savedFn && savedFn?.current) {
-            (async () => {
+        (async () => {
+            if (isLoggedIn && savedFn?.current) {
                 try {
-                    const res = await savedFn!.current!(await apiRequest(savedConfig?.current?.timeout || 5000));
+                    const res = await savedFn.current(await apiRequest(savedConfig?.current?.timeout || 5000));
                     setLoadingError(undefined);
                     if (savedConfig?.current?.process) {
                         setData(savedConfig.current.process(res));
@@ -82,8 +82,8 @@ export const useRequest = <T extends unknown>(
                 } catch (e) {
                     setLoadingError(e);
                 }
-            })();
-        }
+            }
+        })();
     }, [apiRequest, refresh, isLoggedIn, savedFn, savedConfig]);
 
     return {

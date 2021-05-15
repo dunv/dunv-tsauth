@@ -11,11 +11,18 @@ export const _deleteRefreshToken = async (
     debug: boolean,
     refreshToken: string,
     rawTokens: RawTokens | undefined,
-    setRawTokens: (rawTokens?: RawTokens) => void
+    setRawTokens: (rawTokens?: RawTokens) => void,
+    tokens: Tokens
 ): Promise<void> => {
+    if (!rawTokens) {
+        debug && console.log('dunv-tsauth: cannot delete refreshToken when not logged in');
+        return;
+    }
+
     try {
         debug && console.log('dunv-tsauth: deleting refreshToken...');
-        await axios.post(`${url}${UAUTH_URL_DELETE_REFRESH_TOKEN}`, { refreshToken });
+        const req = await _apiRequest(url, rawTokens, setRawTokens, tokens, debug);
+        await req.post(`${url}${UAUTH_URL_DELETE_REFRESH_TOKEN}`, { refreshToken });
         if (refreshToken === rawTokens?.refreshToken) {
             debug && console.log('dunv-tsauth: - deleted current refreshToken (-> implicit logout)');
             setRawTokens(undefined);
